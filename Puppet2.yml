@@ -1,0 +1,102 @@
+---
+- hosts: puppet-awx
+  become: true
+  vars_files:
+    - creds.yml
+  tasks:
+    - name: update the system
+      yum:
+        name: "*"
+        state: latest
+        allowerasing: yes
+        skip_broken: yes
+        nobest: true
+
+    - name: update the system
+      shell: sudo yum update -y --allowerasing --skip-broken --nobest
+
+    - name: restart system to reboot to newest kernel
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+
+    - name: wait for 10 seconds
+      pause:
+        seconds: 10
+
+    - name: wait for the system to reboot
+      wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 5
+        timeout: 120
+
+    - name: import puppet rpm key
+      rpm_key:
+        state: present
+        key: https://yum.puppetlabs.com/RPM-GPG-KEY-puppet
+    
+    - name: import foreman rpm key 
+      rpm_key:
+        state: present
+        key: https://yum.theforeman.org/RPM-GPG-KEY-foreman
+
+    - name: install puppet, puppet tools, and foreman repos
+      become: true
+      yum:
+        disable_gpg_check: yes
+        state: present
+        name:
+           - "https://yum.puppet.com/puppet6-release-el-8.noarch.rpm"
+           - "https://yum.theforeman.org/releases/2.4/el8/x86_64/foreman-release.rpm"
+           - "https://yum.puppetlabs.com/puppet-tools-release-el-8.noarch.rpm"
+           - "https://yum.theforeman.org/katello/4.0/katello/el8/x86_64/katello-repos-latest.rpm"
+
+    - name: install base tools 
+      become: true
+      yum:
+        state: present
+        name:
+          - wget
+          - curl
+          - vim
+          - git
+          - epel-release
+          - foreman-installer-katello
+          - puppet-bolt
+          - puppetserver
+            #- foreman-release-scl
+    
+    - name: Enable and start puppetserver
+      service: 
+        name: puppetserver
+        enabled: yes
+        state: started
+
+    - name: set hostname
+      ansible.builtin.hostname:
+        name: puppet.localhost
+        
+
+    # - name: set hostname 
+    #   become: true
+    #   shell: hostnamectl set-hostname puppet.localhost
+
+    - name: run the foreman installer 
+      #become: true
+      shell: sudo foreman-installer --scenario katello
+   
+    # /etc/sysconfig/network and /etc/hosts must be the same 
+    - name: enable powertools
+      shell: dnf config-manager --set-enabled powertools
+
+    - name: set foreman password
+      shell: foreman-rake permissions:reset username=falcon password=password
+    
+    - firewalld:
+        port: 8140/tcp
+        permanent: true
+        state: enabled
+
+
+ #https://download.sonatype.com/nexus/oss/nexus-latest-bundle.tar.gz

@@ -1,0 +1,122 @@
+apiVersion: 2019-12-01
+location: eastus2
+name: #######
+properties:
+  containers:
+        
+  - name: zabbixsrv
+    properties:
+      image: zabbix/zabbix-server-mysql:alpine-5.0-latest
+      resources:
+        requests:
+          cpu: 2
+          memoryInGb: .6
+      environmentVariables:
+      - name: DB_SERVER_HOST
+        secureValue: '######'
+      - name: DB_SERVER_PORT
+        secureValue: '3306'
+      - name: MYSQL_USER
+        secureValue: '#####'
+      - name: MYSQL_PASSWORD
+        secureValue: '######'
+      - name: ZBX_VALUECACHESIZE
+        secureValue: '32M'
+      - name: TRENDCACHESIZE
+        secureValue: '32M'
+      - name: ZBX_HISTORYINDEXCACHESIZE
+        secureValue: '32M'
+      - name: ZBX_HISTORYCACHESIZE
+        secureValue: '32M'
+      - name: ZBX_CACHESIZE
+        secureValue: '32M'
+      - name: ZBX_HOUSEKEEPINGFREQUENCY
+        secureValue: '24'
+      - name: ZBX_MAXHOUSEKEEPERDELETE
+        secureValue: '120000'
+      volumeMounts:
+      - mountPath: /var/lib/zabbix/ssl/certs
+        name: nginx-certs
+      - mountPath: /var/lib/zabbix/ssl/keys
+        name: nginx-keys
+      ports:
+      - port: 10051
+     
+      
+
+  - name: zabbixweb
+    properties:
+      image: benne641/zabbix-web-nginx:5.0-v7
+      resources:
+        requests:
+          cpu: 1
+          memoryInGb: .6
+      environmentVariables:
+      - name: ZBX_SERVER_HOST
+        secureValue: '########'
+      - name: ZBX_SERVER_PORT
+        secureValue: '10051'
+      - name: DB_SERVER_HOST
+        secureValue: '#####'
+      - name: DB_SERVER_PORT
+        secureValue: '3306'
+      - name: MYSQL_USER
+        secureValue: '######'
+      - name: MYSQL_PASSWORD
+        secureValue: '######'
+        
+      volumeMounts:
+      - mountPath: /etc/ssl/nginx
+        name: ssl-config
+      ports:
+      - port: 80
+   
+
+
+      
+  volumes:
+  - secret:
+      ssl.key: ########
+        
+      
+    name: nginx-keys
+    
+  - secret:
+      ssl.crt: ######
+    name: nginx-certs
+      
+  - secret:
+      ssl.crt: ########
+
+              
+      ssl.key: ######
+              
+      dhparam.pem: #####
+    name: ssl-config
+
+  osType: Linux
+  diagnostics:
+    logAnalytics:
+      workspaceId: #####
+      workspaceKey: ######
+  restartPolicy: OnFailure
+  ipAddress:
+    type: Private
+    ports:
+    - protocol: tcp
+      port: 80
+    - protocol: tcp
+      port: 10051
+    #- protocol: tcp
+      #port: 8080
+    #- protocol: tcp
+      #port: 443
+    ip: '#####'
+  dnsConfig: # DNS configuration for container group
+    nameServers:
+    - #####
+    searchDomains: ##### 
+  networkProfile:
+    id: ######
+    
+type: Microsoft.ContainerInstance/containerGroups
